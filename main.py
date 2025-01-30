@@ -23,9 +23,10 @@ async def solve(
     board = extract_board_from_image_bytes(await file.read())
 
     def solution_generator() -> Iterator[str]:
-        yield from solve_color_fill_simple(board, max_depth=depth)
+        for color in solve_color_fill_simple(board, max_depth=depth):
+            yield f"{color}\n"
 
     return StreamingResponse(
         solution_generator(),
-        media_type="application/json",
+        media_type="text/plain",
     )

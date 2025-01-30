@@ -1,54 +1,67 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import functools
 import time
 from typing import Generator
 
+from webcolors import hex_to_name
+
 from helpers.board import (
     apply_color_change,
-    board_to_str,
     copy_board,
     get_connected_region,
     get_neighboring_colors_of_region,
     is_board_filled,
     print_colored_board,
-    str_to_board,
 )
 
 
 def find_best_color(board: list[list[str]], max_depth: int = 4) -> str:
     scores = get_score_of_playing_each_color(
-        board_to_str(board),
+        board,
         current_depth=1,
         max_depth=max_depth,
     )
-    return max(scores, key=scores.get)  # type: ignore
+    return max(scores, key=lambda color: scores[color][0])
 
 
-@functools.cache
+def find_best_color_path(board: list[list[str]], max_depth: int = 4) -> list[str]:
+    scores = get_score_of_playing_each_color(
+        board,
+        current_depth=1,
+        max_depth=max_depth,
+    )
+    return max(scores.values(), key=lambda score_path_tuple: score_path_tuple[0])[1]
+
+
 def get_score_of_playing_each_color(
-    board_str: str,
+    board: list[list[str]],
     *,
     current_depth: int,
     max_depth: int,
-) -> dict[str, int]:
-    board = str_to_board(board_str)
+) -> dict[str, tuple[int, list[str]]]:
     region = get_connected_region(board)
-    if current_depth == max_depth or is_board_filled(board_str):
+    if current_depth == max_depth or is_board_filled(board):
         return {
-            board[0][0]: len(region),
+            board[0][0]: (len(region), []),
         }
-    return {
-        color: max(
-            get_score_of_playing_each_color(
-                board_str=board_to_str(
-                    new_board_with_region_updated_to_color(board, region, color)
-                ),
-                current_depth=current_depth + 1,
-                max_depth=max_depth,
-            ).values()
+
+    def recurse(color: str):
+        iterable = get_score_of_playing_each_color(
+            board=new_board_with_region_updated_to_color(board, region, color),
+            current_depth=current_depth + 1,
+            max_depth=max_depth,
+        ).values()
+        if not iterable:
+            breakpoint()
+        score, path = max(
+            iterable,
+            key=lambda score_path_tuple: score_path_tuple[0],
         )
+        return (score, [color, *path])
+
+    return {
+        color: recurse(color)
         for color in get_neighboring_colors_of_region(board, region)
     }
 
@@ -69,17 +82,21 @@ def solve_color_fill_simple(
     max_depth: int = 4,
 ) -> Generator[str]:
     while not is_board_filled(board):
-        best_color = find_best_color(board, max_depth=max_depth)
-        yield best_color
-        board = new_board_with_region_updated_to_color(
-            board,
-            get_connected_region(board),
-            best_color,
-        )
-        if step:
-            print_colored_board(board)
-            print(f"Best color: {best_color}")
-            if max_depth < 6:
-                time.sleep(4)
-            elif max_depth < 8:
-                time.sleep(2)
+        for best_color in find_best_color_path(board, max_depth=max_depth):
+            try:
+                best_color_name = hex_to_name(best_color)
+            except ValueError:
+                best_color_name = best_color
+            yield best_color_name
+            board = new_board_with_region_updated_to_color(
+                board,
+                get_connected_region(board),
+                best_color,
+            )
+            if step:
+                print_colored_board(board)
+                print(f"Best color: {best_color_name}")
+                if max_depth < 6:
+                    time.sleep(4)
+                elif max_depth < 8:
+                    time.sleep(2)

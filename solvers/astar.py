@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import heapq
 import time
-from typing import List, Set, Tuple
+from typing import Set
 
 from helpers.board import (
     apply_color_change,
@@ -15,9 +15,7 @@ from helpers.board import (
 )
 
 
-def heuristic(
-    board: List[List[str]],
-) -> float:
+def heuristic(board: list[list[str]]) -> float:
     """
     A simple heuristic:
       * how large is the top-left region?
@@ -28,10 +26,7 @@ def heuristic(
     return (board_size - len(region)) / board_size
 
 
-def replace_color(
-    board: List[List[str]],
-    new_color: str,
-) -> List[List[str]]:
+def replace_color(board: list[list[str]], new_color: str) -> list[list[str]]:
     """
     Replace all instances of color with new_color.
     """
@@ -42,10 +37,10 @@ def replace_color(
 
 
 def solve_color_fill_anytime(
-    board: List[List[str]],
+    board: list[list[str]],
     time_limit: float | None = None,
     max_solutions: int = 5,
-) -> List[List[str]]:
+) -> list[list[str]]:
     """
     A best-first (A*) search that:
       - Prioritizes states with lowest g + h.
@@ -55,13 +50,13 @@ def solve_color_fill_anytime(
     to highest.
     """
     start_time = time.time()
-    solutions_found: List[List[str]] = []
+    solutions_found: list[list[str]] = []
     # Priority queue entries are (f, g, board_string, move_sequence)
     # where f = g + h, g = cost so far, h = heuristic
     board = replace_color(board, "-")
     initial_board_str = board_to_str(board)
     visited: Set[str] = set([initial_board_str])
-    pq: List[Tuple[float, int, str, List[str]]] = [
+    pq: list[tuple[float, int, str, list[str]]] = [
         (
             heuristic(board),
             0,

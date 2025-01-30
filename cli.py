@@ -57,8 +57,9 @@ def main():
         moves = list(
             solvers.solve_color_fill_simple(board, step=args.step, max_depth=args.depth)
         )
-        cost = len(moves)
-        print(f"Simple solver result (cost={cost}): {''.join(moves)}")
+        if not args.step:
+            cost = len(moves)
+            print(f"Simple solver result (cost={cost}):\n{'\n'.join(moves)}")
     else:
         print(
             "Using the anytime A* solver with a time limit of "

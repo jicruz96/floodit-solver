@@ -13,7 +13,7 @@
             display: inline-block;
             text-align: left;
             white-space: pre-wrap;
-            border: 1px solid #aaa;
+            /* border: 1px solid #aaa; */
             padding: 1em;
             width: 80%;
             margin-top: 20px;
@@ -21,21 +21,27 @@
         #puzzle {
             width: 200px;
         }
+        .color-box {
+            font-size: 24px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <h1>Upload a Color Fill Puzzle Image</h1>
     <div id="buttons">
         <input type="file" id="fileInput" accept="image/*" />
-        <label for="depth">Depth:</label>
+        <label for="depth">Lookahead Depth:</label>
         <input type="number" id="depth" value="4" min="1" max="10" />
+        <br/><br/>
         <button onclick="uploadAndDisplayImage()">Solve</button>
     </div>
-    <br/><br/>
 
     <div id="output">
         <div id="status"></div>
-        <div id="solution"></div>
+        <div id="solution">
+            <ol id="solution-list"></ol>
+        </div>
     </div>
 
     <script>
@@ -45,26 +51,42 @@
         alert("Please select a file first.");
         return;
       }
-      // clear any old output
+      // Clear old output
       document.getElementById("output").textContent = "";
-      // display image at top of output div
+      // Display image at top of output div
       const img = document.createElement("img");
       img.src = URL.createObjectURL(file);
       img.id = "puzzle";
       document.getElementById("output").appendChild(img);
-      // add status div
+      // Add status div
       const status = document.createElement("div");
       status.id = "status";
       document.getElementById("output").appendChild(status);
-      // add solution div
+      // Add solution div with ordered list
       const solution = document.createElement("div");
       solution.id = "solution";
+      const solutionList = document.createElement("ol");
+      solutionList.id = "solution-list";
+      solution.appendChild(solutionList);
       document.getElementById("output").appendChild(solution);
       await upload(file);
     }
+
+    function addSolutionLine(color) {
+        const li = document.createElement("li");
+        const colorBox = document.createElement("span");
+        colorBox.textContent = "■";  // Unicode square
+        console.log(color);
+        colorBox.style.color = color; // Apply received color
+        colorBox.classList.add("color-box");
+        li.appendChild(colorBox);
+        document.getElementById("solution-list").appendChild(li);
+    }
+
     async function upload(file) {
-      // Clear any old output
+      // Clear old output
       document.getElementById("status").textContent = "Solving...\n\n";
+      document.getElementById("solution-list").innerHTML = ""; // Clear list
 
       const formData = new FormData();
       formData.append("file", file);
@@ -87,15 +109,30 @@
       // Read the streaming response as it arrives
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
-      let i = 0;
+      let remainder = "";
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+            if (remainder.length > 0) {
+                addSolutionLine(remainder);
+            }
+            break;
+        }
         const chunk = decoder.decode(value, { stream: true });
-        console.log(chunk);
-        for (let char of chunk) {
-            document.getElementById("solution").textContent += `${i}. ${char}\n`;
-            i++;
+        const lines = chunk.split("\n");
+        for (let j = 0; j < lines.length; j++) {
+            let line = lines[j];
+            if (j == 0) {
+                line = remainder + line;
+                remainder = "";
+            }
+            const color = line.trim();
+            if (color.length == 0) continue;
+            if (j != lines.length - 1 || chunk.endsWith('\n')) {
+                addSolutionLine(color);
+            } else if (j == lines.length - 1) {
+                remainder = color;
+            }
         }
       }
       document.getElementById("status").textContent = "Done!\n\n";
