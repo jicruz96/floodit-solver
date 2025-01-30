@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Color Fill Solver</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: sans-serif;
+            margin-top: 50px;
+        }
+        #output {
+            display: inline-block;
+            text-align: left;
+            white-space: pre-wrap;
+            border: 1px solid #aaa;
+            padding: 1em;
+            width: 80%;
+            margin-top: 20px;
+        }
+        #puzzle {
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload a Color Fill Puzzle Image</h1>
+    <div id="buttons">
+        <input type="file" id="fileInput" accept="image/*" />
+        <label for="depth">Depth:</label>
+        <input type="number" id="depth" value="4" min="1" max="10" />
+        <button onclick="uploadAndDisplayImage()">Solve</button>
+    </div>
+    <br/><br/>
+
+    <div id="output">
+        <div id="status"></div>
+        <div id="solution"></div>
+    </div>
+
+    <script>
+    async function uploadAndDisplayImage() {
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) {
+        alert("Please select a file first.");
+        return;
+      }
+      // clear any old output
+      document.getElementById("output").textContent = "";
+      // display image at top of output div
+      const img = document.createElement("img");
+      img.src = URL.createObjectURL(file);
+      img.id = "puzzle";
+      document.getElementById("output").appendChild(img);
+      // add status div
+      const status = document.createElement("div");
+      status.id = "status";
+      document.getElementById("output").appendChild(status);
+      // add solution div
+      const solution = document.createElement("div");
+      solution.id = "solution";
+      document.getElementById("output").appendChild(solution);
+      await upload(file);
+    }
+    async function upload(file) {
+      // Clear any old output
+      document.getElementById("status").textContent = "Solving...\n\n";
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Add depth to formData
+      formData.append("depth", document.getElementById("depth").value);
+
+      // POST the form to /solve endpoint
+      const response = await fetch("/solve", {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        document.getElementById("solution").textContent += 
+          "Error: " + response.status + " " + response.statusText;
+        return;
+      }
+
+      // Read the streaming response as it arrives
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let i = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        console.log(chunk);
+        for (let char of chunk) {
+            document.getElementById("solution").textContent += `${i}. ${char}\n`;
+            i++;
+        }
+      }
+      document.getElementById("status").textContent = "Done!\n\n";
+    }
+    </script>
+</body>
+</html>
