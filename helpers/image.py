@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image
 
 
-class Rectangle:
+class Box:
     def __init__(self, x: int, y: int, w: int, h: int):
         self.x = x
         self.y = y
@@ -13,8 +13,8 @@ class Rectangle:
         self.h = h
 
     @classmethod
-    def from_cv2_rect(cls, rect: cv2.typing.Rect) -> Rectangle:
-        return cls(*rect)
+    def from_cv2_contour(cls, contour: cv2.typing.MatLike) -> Box:
+        return cls(*cv2.boundingRect(contour))
 
     @property
     def area(self) -> int:
@@ -28,6 +28,7 @@ class Rectangle:
     def slice(self) -> tuple[slice[int], slice[int]]:
         return (slice(self.y, self.y + self.h), slice(self.x, self.x + self.w))
 
+    @property
     def is_square_like_and_not_too_small(self) -> bool:
         return self.w >= 5 and self.h >= 5 and (0.95 <= self.aspect_ratio <= 1.05)
 
@@ -37,7 +38,10 @@ def find_largest_square_in_image(img: bytes) -> Image.Image:
     Use OpenCV to find the largest 'square-like' bounding rectangle in an
     image provided as raw bytes. Returns that region as a Pillow Image or None if not found.
     """
-    cv_img = cv2.imdecode(np.frombuffer(img, np.uint8), cv2.IMREAD_COLOR)
+    cv_img = cv2.imdecode(
+        buf=np.frombuffer(img, np.uint8),
+        flags=cv2.IMREAD_COLOR,
+    )
     contours, _ = cv2.findContours(
         image=cv2.Canny(
             image=cv2.cvtColor(
@@ -51,17 +55,12 @@ def find_largest_square_in_image(img: bytes) -> Image.Image:
         mode=cv2.RETR_EXTERNAL,
         method=cv2.CHAIN_APPROX_SIMPLE,
     )
+    boxes = [Box.from_cv2_contour(contour) for contour in contours]
+    squares = [box for box in boxes if box.is_square_like_and_not_too_small]
+    biggest_square = max(squares, key=lambda square: square.area)
     pil_img = Image.fromarray(
         cv2.cvtColor(
-            src=cv_img[
-                max(
-                    filter(
-                        lambda box: box.is_square_like_and_not_too_small(),
-                        map(Rectangle.from_cv2_rect, map(cv2.boundingRect, contours)),
-                    ),
-                    key=lambda box: box.area,
-                ).slice
-            ],
+            src=cv_img[biggest_square.slice],
             code=cv2.COLOR_BGR2RGB,
         )
     )
