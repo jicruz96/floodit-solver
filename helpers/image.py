@@ -45,8 +45,8 @@ def find_largest_square_in_image(img: bytes) -> Image.Image:
                 code=cv2.COLOR_BGR2GRAY,
             ),
             # high sensitivity thresholds
-            threshold1=30,
-            threshold2=100,
+            threshold1=10,
+            threshold2=50,
         ),
         mode=cv2.RETR_EXTERNAL,
         method=cv2.CHAIN_APPROX_SIMPLE,
